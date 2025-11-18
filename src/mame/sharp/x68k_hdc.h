@@ -29,6 +29,24 @@ class x68k_hdc_image_device : public harddisk_image_base_device
 		WRITE
 	};
 
+	static const char* sasi_phase_as_string(sasi_phase phase)
+	{
+		switch(phase)
+		{
+			case sasi_phase::BUSFREE:		return "BUSFREE";
+			case sasi_phase::ARBITRATION:	return "ARBITRATION";
+			case sasi_phase::SELECTION:		return "SELECTION";
+			case sasi_phase::RESELECTION:	return "RESELECTION";
+			case sasi_phase::COMMAND:		return "COMMAND";
+			case sasi_phase::DATA:			return "DATA";
+			case sasi_phase::STATUS:		return "STATUS";
+			case sasi_phase::MESSAGE:		return "MESSAGE";
+			case sasi_phase::READ:			return "READ";
+			case sasi_phase::WRITE:			return "WRITE";
+		}
+		return "ERROR";
+	}
+
 	// SASI commands, based on the SASI standard
 	enum sasi_cmd : u8
 	{
@@ -51,11 +69,11 @@ class x68k_hdc_image_device : public harddisk_image_base_device
 		SASI_CMD_WRITE_FILE_MARK,
 		SASI_CMD_INVALID_10,
 		SASI_CMD_INVALID_11,
-		SASI_CMD_RESERVE_UNIT,
+		SASI_CMD_INQUIRY,
 		SASI_CMD_RELEASE_UNIT,
 		SASI_CMD_INVALID_14,
 		SASI_CMD_INVALID_15,
-		SASI_CMD_READ_CAPACITY,
+		SASI_CMD_RESERVED_16,
 		SASI_CMD_INVALID_17,
 		SASI_CMD_INVALID_18,
 		SASI_CMD_INVALID_19,
@@ -64,12 +82,15 @@ class x68k_hdc_image_device : public harddisk_image_base_device
 		SASI_CMD_INVALID_1C,
 		SASI_CMD_INVALID_1D,
 		SASI_CMD_INVALID_1E,
-		SASI_CMD_INQUIRY,
+		SASI_CMD_RESERVE_UNIT,
 		// Class 1 commands  (yes, just the one)
 		SASI_CMD_RESERVED_20,
 		SASI_CMD_RESERVED_21,
 		SASI_CMD_RESERVED_22,
-		SASI_CMD_SET_BLOCK_LIMITS = 0x28,
+		SASI_CMD_READ_CAPACITY = 0x25,
+		SASI_CMD_READ10 = 0x28,
+		SASI_CMD_WRITE10 = 0x2a,
+		// SASI_CMD_SET_BLOCK_LIMITS = 0x28,
 		// Class 2 commands
 		SASI_CMD_EXTENDED_ADDRESS_READ = 0x48,
 		SASI_CMD_INVALID_49,
@@ -90,7 +111,7 @@ class x68k_hdc_image_device : public harddisk_image_base_device
 		SASI_STATUS_CD = 1 << 3,    // C/D (Command/Data)
 		SASI_STATUS_IO = 1 << 2,    // I/O
 		SASI_STATUS_BSY = 1 << 1,   // BSY
-		SASI_STATUS_REQ = 1 << 0    // REQ
+		SASI_STATUS_REQ = 1 << 0,   // REQ
 	};
 
 public:
@@ -106,9 +127,13 @@ public:
 	void hdc_w(offs_t offset, u16 data);
 	u16 hdc_r(offs_t offset);
 
+	auto drq_wr_callback() { return drq_cb.bind(); }
+
 protected:
 	// device_t implementation
 	virtual void device_start() override ATTR_COLD;
+
+	devcb_write_line drq_cb;	
 
 private:
 	TIMER_CALLBACK_MEMBER(req_timer_callback);
@@ -117,12 +142,14 @@ private:
 	u8 m_status_port = 0;  // read at 0xe96003
 	u8 m_status = 0;       // status phase output
 	u8 m_command[10]{};
-	u8 m_sense[4]{};
+	u8 m_sense[18]{};
+	u8 m_inquiry[5+31]{};
+	u8 m_capacity[8]{};
 	u16 m_command_byte_count = 0;
 	u16 m_command_byte_total = 0;
 	u8 m_current_command = 0;
-	u16 m_transfer_byte_count = 0;
-	u16 m_transfer_byte_total = 0;
+	u32 m_transfer_byte_count = 0;
+	u32 m_transfer_byte_total = 0;
 	emu_timer *m_req_timer = nullptr;
 };
 

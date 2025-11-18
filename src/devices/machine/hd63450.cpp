@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "hd63450.h"
 
-//#define VERBOSE 1
+#define VERBOSE 1
 #include "logmacro.h"
 
 DEFINE_DEVICE_TYPE(HD63450, hd63450_device, "hd63450", "Hitachi HD63450 DMAC")

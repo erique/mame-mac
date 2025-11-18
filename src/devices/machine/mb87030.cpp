@@ -10,7 +10,7 @@
 #include "emu.h"
 #include "mb87030.h"
 
-//#define VERBOSE 1
+#define VERBOSE 1
 #include "logmacro.h"
 
 
