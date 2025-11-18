@@ -821,7 +821,7 @@ void x68k_state::x68k_map(address_map &map)
 	map(0xe96000, 0xe9601f).rw("x68k_hdc", FUNC(x68k_hdc_image_device::hdc_r), FUNC(x68k_hdc_image_device::hdc_w));
 	map(0xea0000, 0xea1fff).rw(FUNC(x68k_state::exp_r), FUNC(x68k_state::exp_w));  // external SCSI ROM and controller
 	map(0xeafa80, 0xeafa89).rw(FUNC(x68k_state::areaset_r), FUNC(x68k_state::enh_areaset_w));
-	map(0xfc0000, 0xfdffff).rw(FUNC(x68k_state::exp_r), FUNC(x68k_state::exp_w));  // internal SCSI ROM
+	// map(0xfc0000, 0xfdffff).rw(FUNC(x68k_state::exp_r), FUNC(x68k_state::exp_w));  // internal SCSI ROM
 }
 
 void x68ksupr_state::x68kxvi_map(address_map &map)
@@ -929,7 +929,7 @@ void x68k_state::machine_start()
 	// start LED timer
 	m_led_timer->adjust(attotime::zero, 0, attotime::from_msec(400));
 
-	for(int drive=0;drive<4;drive++)
+	for(int drive=0;drive<2;drive++)
 	{
 		char devname[16];
 		sprintf(devname, "%d", drive);
@@ -1097,8 +1097,8 @@ void x68k_state::x68000_base(machine_config &config)
 	m_upd72065->drq_wr_callback().set(m_hd63450, FUNC(hd63450_device::drq0_w));
 	FLOPPY_CONNECTOR(config, "upd72065:0", x68k_floppies, "525hd", x68k_state::floppy_formats);
 	FLOPPY_CONNECTOR(config, "upd72065:1", x68k_floppies, "525hd", x68k_state::floppy_formats);
-	FLOPPY_CONNECTOR(config, "upd72065:2", x68k_floppies, "525hd", x68k_state::floppy_formats);
-	FLOPPY_CONNECTOR(config, "upd72065:3", x68k_floppies, "525hd", x68k_state::floppy_formats);
+	// FLOPPY_CONNECTOR(config, "upd72065:2", x68k_floppies, "525hd", x68k_state::floppy_formats);
+	// FLOPPY_CONNECTOR(config, "upd72065:3", x68k_floppies, "525hd", x68k_state::floppy_formats);
 
 	SOFTWARE_LIST(config, "flop_list").set_original("x68k_flop");
 	SOFTWARE_LIST(config, "flop_generic_list").set_compatible("generic_flop_525").set_filter("x68k");
@@ -1145,7 +1145,11 @@ void x68k_state::x68000(machine_config &config)
 	m_crtc->gvram_read_cb().set(FUNC(x68k_state::gvram_read));
 	m_crtc->gvram_write_cb().set(FUNC(x68k_state::gvram_write));
 
-	X68KHDC(config, "x68k_hdc", 0);
+	// X68KHDC(config, "x68k_hdc", 0);
+	X68KHDC(config, m_hdc, 0);
+	// m_hd63450->dma_read<1>().set("x68k_hdc", FUNC(x68k_hdc_image_device::dma_r));
+	// m_hd63450->dma_write<1>().set("x68k_hdc", FUNC(x68k_hdc_image_device::dma_w));
+	m_hdc->drq_wr_callback().set(m_hd63450, FUNC(hd63450_device::drq1_w));
 }
 
 static void scsi_devices(device_slot_interface &device)
@@ -1215,7 +1219,7 @@ void x68030_state::x68030(machine_config &config)
 
 ROM_START( x68000 )
 	ROM_REGION16_BE(0x1000000, "maincpu", 0)  // 16MB address space
-	ROM_DEFAULT_BIOS("cz600ce")
+	// ROM_DEFAULT_BIOS("cz600ce")
 	ROM_LOAD( "cgrom.dat",  0xf00000, 0xc0000, CRC(9f3195f1) SHA1(8d72c5b4d63bb14c5dbdac495244d659aa1498b6) )
 	ROM_SYSTEM_BIOS(0, "ipl10",  "IPL-ROM V1.0 (87/05/07)")
 	ROMX_LOAD( "iplrom.dat", 0xfe0000, 0x20000, CRC(72bdf532) SHA1(0ed038ed2133b9f78c6e37256807424e0d927560), ROM_BIOS(0) )

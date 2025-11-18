@@ -14,6 +14,7 @@
 #pragma once
 
 #include "x68k_crtc.h"
+#include "x68k_hdc.h"
 
 #include "bus/msx/ctrl/ctrl.h"
 #include "bus/x68k/x68kexp.h"
@@ -60,6 +61,7 @@ public:
 		, m_ppi(*this, "ppi8255")
 		, m_screen(*this, "screen")
 		, m_upd72065(*this, "upd72065")
+		, m_hdc(*this, "x68k_hdc")
 		, m_joy(*this, "joy%u", 1U)
 		, m_expansion(*this, "exp%u", 1U)
 		, m_adpcm_out(*this, {"adpcm_outl", "adpcm_outr"})
@@ -102,6 +104,7 @@ protected:
 	required_device<i8255_device> m_ppi;
 	required_device<screen_device> m_screen;
 	required_device<upd72065_device> m_upd72065;
+	required_device<x68k_hdc_image_device> m_hdc;
 	required_device_array<msx_general_purpose_port_device, 2> m_joy;
 	required_device_array<x68k_expansion_slot_device, 2> m_expansion;
 
