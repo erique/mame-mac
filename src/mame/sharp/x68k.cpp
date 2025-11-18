@@ -1054,6 +1054,15 @@ void x68k_state::x68000_base(machine_config &config)
 	SCC8530(config, m_scc, 40_MHz_XTAL / 8);
 	m_scc->out_int_callback().set_inputline(m_maincpu, INPUT_LINE_IRQ5);
 
+	rs232_port_device &rs232(RS232_PORT(config, "rs232", default_rs232_devices, nullptr));
+	rs232.rxd_handler().set(m_scc, FUNC(scc8530_device::rxa_w));
+	rs232.dcd_handler().set(m_scc, FUNC(scc8530_device::dcda_w));
+	rs232.cts_handler().set(m_scc, FUNC(scc8530_device::ctsa_w));
+	rs232.dsr_handler().set(m_scc, FUNC(scc8530_device::synca_w));
+	m_scc->out_txda_callback().set(rs232, FUNC(rs232_port_device::write_txd));
+	m_scc->out_dtra_callback().set(rs232, FUNC(rs232_port_device::write_dtr));
+	m_scc->out_rtsa_callback().set(rs232, FUNC(rs232_port_device::write_rts));
+
 	rs232_port_device &mouse(RS232_PORT(config, "mouse_port", mouse_devices, "x68k"));
 	mouse.rxd_handler().set(m_scc, FUNC(scc8530_device::rxb_w));
 	m_scc->out_rtsb_callback().set(mouse, FUNC(rs232_port_device::write_rts));
