@@ -122,7 +122,7 @@ uint16_t pccard_sram_device::read_reg(offs_t offset, uint16_t mem_mask)
 {
 	uint16_t data = 0xffff;
 
-	if (!m_cd && has_configured_map(1))
+	if (!m_cd && has_space(1))
 		data = space(1).read_word(offset * 2, mem_mask);
 
 	LOGMASKED(LOG_ATTRIBUTE, "attribute memory r: %06x = %04x & %04x\n", offset, data, mem_mask);
@@ -134,7 +134,7 @@ void pccard_sram_device::write_reg(offs_t offset, uint16_t data, uint16_t mem_ma
 {
 	LOGMASKED(LOG_ATTRIBUTE, "attribute memory w: %06x = %04x & %04x\n", offset, data, mem_mask);
 
-	if (!m_cd && !m_wp && has_configured_map(1))
+	if (!m_cd && !m_wp && has_space(1))
 		space(1).write_word(offset * 2, data & 0x00ff, mem_mask);
 }
 
