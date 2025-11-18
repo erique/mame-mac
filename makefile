@@ -13,7 +13,7 @@
 ###########################################################################
 
 # REGENIE = 1
-# VERBOSE = 1
+VERBOSE = 1
 # NOWERROR = 1
 # IGNORE_GIT = 1
 
@@ -43,7 +43,7 @@
 # NO_USE_XINPUT_WII_LIGHTGUN_HACK = 1
 # FORCE_DRC_C_BACKEND = 1
 
-# DEBUG = 1
+DEBUG = 1
 # PROFILER = 1
 # SANITIZE =
 
@@ -51,9 +51,9 @@
 # BIGENDIAN = 1
 # NOASM = 1
 
-# OPTIMIZE = 3
-# SYMBOLS = 1
-# SYMLEVEL = 2
+OPTIMIZE = 1
+SYMBOLS = 1
+SYMLEVEL = 2
 # PDB_SYMBOLS = 1
 # MAP = 1
 # PROFILE = 1
@@ -118,7 +118,7 @@
 # PRECOMPILE = 0
 
 # DEBUG_DIR=c:\test\location
-# DEBUG_ARGS= -window -video bgfx
+DEBUG_ARGS= -window -video bgfx
 
 ifdef PREFIX_MAKEFILE
 include $(PREFIX_MAKEFILE)
