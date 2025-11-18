@@ -2168,7 +2168,7 @@ void a1200_state::a1200(machine_config &config)
 	kbd.kdat_handler().set("cia_0", FUNC(mos8520_device::sp_w));
 	kbd.krst_handler().set(FUNC(a1200_state::kbreset_w));
 
-	m_screen->set_screen_update(FUNC(amiga_state::screen_update));
+	// m_screen->set_screen_update(FUNC(amiga_state::screen_update));
 
 	MCFG_VIDEO_START_OVERRIDE(amiga_state, amiga_aga)
 
@@ -2568,6 +2568,8 @@ ROM_START( a1200 )
 	ROM_SYSTEM_BIOS(2, "logica2", "Logica Diagnostic 2.0")
 	ROMX_LOAD("logica2.u6a", 0x00000, 0x40000, CRC(566bc3f9) SHA1(891d3b7892843517d800d24593168b1d8f1646ca), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(2))
 	ROMX_LOAD("logica2.u6b", 0x00002, 0x40000, CRC(aac94759) SHA1(da8a4f9ae1aa84f5e2a5dcc5c9d7e4378a9698b7), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(2))
+	ROM_SYSTEM_BIOS(3, "diagrom", "Amiga DiagROM by Chucky/TheGang")
+	ROMX_LOAD("DiagROM", 0x00000, 0x80000, NO_DUMP, ROM_BIOS(3))
 ROM_END
 
 #define rom_a1200n  rom_a1200
