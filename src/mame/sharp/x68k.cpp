@@ -141,7 +141,9 @@
 #define LOG_FDC (1U << 1)
 #define LOG_SYS (1U << 2)
 #define LOG_IRQ (1U << 3)
+#define LOG_PRT (1U << 4)
 //#define VERBOSE (LOG_FDC | LOG_SYS | LOG_IRQ)
+#define VERBOSE (LOG_PRT)
 #include "logmacro.h"
 
 
@@ -415,6 +417,43 @@ uint8_t x68k_state::ioc_r(offs_t offset)
 	default:
 		return 0x00;
 	}
+}
+
+void x68k_state::printer_w(offs_t offset, uint16_t data, uint16_t mem_mask)
+{
+	// static uint8_t buffer[1024];
+	// static int pos = 0;
+	static uint16_t latch = 0;
+	switch(offset)
+	{
+	case 0x00:
+		latch = data & 0xff;
+		break;
+	case 0x01:
+		if (data)
+		{
+			printf("X68K PRINTER: %02x / %02x\n", latch, ~latch & 0xff);
+			// buffer[pos++] = latch;
+			// if (pos >= sizeof(buffer) - 1 || latch == '\n')
+			// {
+			// 	buffer[pos] = 0;
+			// 	printf("X68K PRINTER: %s", buffer);
+			// 	pos = 0;
+			// }
+		}
+		break;
+	default:
+	    LOGMASKED(LOG_PRT, "PRT: [%08x] Wrote %04x to invalid or unimplemented printer port %04x\n",m_maincpu->pc(),data,offset);
+		break;
+	}
+}
+
+uint16_t x68k_state::printer_r(offs_t offset)
+{
+	if (offset == 0x01)
+		return 0x0000;
+	LOGMASKED(LOG_PRT, "PRT: [%08x] Read from invalid or unimplemented printer port %04x\n",m_maincpu->pc(),offset);
+	return 0xffff;
 }
 
 /*
@@ -792,7 +831,7 @@ void x68k_state::x68k_base_map(address_map &map)
 	map(0xe86000, 0xe87fff).rw(FUNC(x68k_state::areaset_r), FUNC(x68k_state::areaset_w));
 	map(0xe88000, 0xe89fff).rw(m_mfpdev, FUNC(mc68901_device::read), FUNC(mc68901_device::write)).umask16(0x00ff);
 	map(0xe8a000, 0xe8bfff).rw(m_rtc, FUNC(rp5c15_device::read), FUNC(rp5c15_device::write)).umask16(0x00ff);
-//  map(0xe8c000, 0xe8dfff).rw(FUNC(x68k_state::x68k_printer_r), FUNC(x68k_state::x68k_printer_w));
+ 	map(0xe8c000, 0xe8dfff).rw(FUNC(x68k_state::printer_r), FUNC(x68k_state::printer_w));
 	map(0xe8e000, 0xe8ffff).rw(FUNC(x68k_state::sysport_r), FUNC(x68k_state::sysport_w));
 	map(0xe90000, 0xe91fff).rw(m_ym2151, FUNC(ym2151_device::read), FUNC(ym2151_device::write)).umask16(0x00ff);
 	map(0xe94000, 0xe94003).m(m_upd72065, FUNC(upd72065_device::map)).umask16(0x00ff);

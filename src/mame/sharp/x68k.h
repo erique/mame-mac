@@ -221,6 +221,8 @@ protected:
 	uint16_t fdc_r(offs_t offset);
 	void ioc_w(offs_t offset, uint8_t data);
 	uint8_t ioc_r(offs_t offset);
+	void printer_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	uint16_t printer_r(offs_t offset);
 	void sysport_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	uint16_t sysport_r(offs_t offset);
 	void ppi_w(offs_t offset, uint16_t data);
