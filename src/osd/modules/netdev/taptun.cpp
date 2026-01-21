@@ -99,29 +99,128 @@ private:
 	uint8_t m_buf[2048];
 };
 
+#if 0 //defined(__linux__)
+
+#include <limits.h>
+#include <unistd.h>
+
+static bool get_helper_path(char *out, size_t outsz)
+{
+    char exe[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+    if (len <= 0)
+        return false;
+
+    exe[len] = '\0';
+
+    /* Strip filename */
+    char *slash = strrchr(exe, '/');
+    if (!slash)
+        return false;
+
+    *(slash + 1) = '\0';
+
+    /* Append helper name */
+    snprintf(out, outsz, "%smame-tap-helper", exe);
+    return true;
+}
+#endif
+
 netdev_tap::netdev_tap(const char *name, network_handler &handler)
 	: network_device_base(handler)
 {
 #if defined(__linux__)
-	m_fd = -1;
-	if((m_fd = open("/dev/net/tun", O_RDWR)) == -1) {
-		osd_printf_verbose("tap: open failed %d\n", errno);
-		return;
-	}
 
-	struct ifreq ifr;
-	memset(&ifr, 0, sizeof(ifr));
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-	sprintf(ifr.ifr_name, "tap-mess-%d-0", getuid());
-	if(ioctl(m_fd, TUNSETIFF, (void *)&ifr) == -1) {
-		osd_printf_verbose("tap: ioctl failed %d\n", errno);
-		close(m_fd);
-		m_fd = -1;
-		return;
-	}
-	osd_printf_verbose("netdev_tap: network up!\n");
-	strncpy(m_ifname, ifr.ifr_name, 10);
-	fcntl(m_fd, F_SETFL, O_NONBLOCK);
+#include <limits.h>
+#include <string.h>
+#include <unistd.h>
+
+m_fd = -1;
+
+int sv[2];
+if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) < 0) {
+    osd_printf_verbose("tap: socketpair failed %d\n", errno);
+    return;
+}
+
+/* Determine the path to the helper binary */
+char helper_path[PATH_MAX];
+{
+    char exe[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe)-1);
+    if (len <= 0) {
+        osd_printf_verbose("tap: failed to resolve executable path\n");
+        return;
+    }
+    exe[len] = '\0';
+    char *slash = strrchr(exe, '/');
+    if (!slash) {
+        osd_printf_verbose("tap: cannot find directory of executable\n");
+        return;
+    }
+    *(slash+1) = '\0';
+    snprintf(helper_path, sizeof(helper_path), "%smame-tap-helper", exe);
+}
+
+/* Fork + exec the helper */
+pid_t pid = fork();
+if (pid < 0) {
+    osd_printf_verbose("tap: fork failed %d\n", errno);
+    close(sv[0]);
+    close(sv[1]);
+    return;
+}
+
+if (pid == 0) {
+    /* child process */
+    close(sv[0]);
+
+    /* pass socket fd to helper via argv */
+    char fdarg[16];
+    snprintf(fdarg, sizeof(fdarg), "%d", sv[1]);
+
+    execl(helper_path, helper_path, fdarg, NULL);
+    _exit(127); /* exec failed */
+}
+
+/* parent process */
+close(sv[1]);
+
+/* receive TAP fd + ifname */
+struct msghdr msg = {0};
+struct iovec iov;
+char ifname[IFNAMSIZ];
+
+iov.iov_base = ifname;
+iov.iov_len  = sizeof(ifname);
+msg.msg_iov = &iov;
+msg.msg_iovlen = 1;
+
+char cmsgbuf[CMSG_SPACE(sizeof(int))];
+msg.msg_control = cmsgbuf;
+msg.msg_controllen = sizeof(cmsgbuf);
+
+if (recvmsg(sv[0], &msg, 0) < 0) {
+    osd_printf_verbose("tap: recvmsg failed %d\n", errno);
+    close(sv[0]);
+    return;
+}
+
+struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+if (!cmsg || cmsg->cmsg_type != SCM_RIGHTS) {
+    osd_printf_verbose("tap: no fd received\n");
+    close(sv[0]);
+    return;
+}
+
+memcpy(&m_fd, CMSG_DATA(cmsg), sizeof(int));
+close(sv[0]);
+
+strncpy(m_ifname, ifname, sizeof(m_ifname));
+fcntl(m_fd, F_SETFL, O_NONBLOCK);
+
+osd_printf_verbose("netdev_tap: network up (%s)\n", m_ifname);
+
 #elif defined(_WIN32)
 	std::wstring device_path(L"" USERMODEDEVICEDIR);
 	device_path.append(wstring_from_utf8(name));
