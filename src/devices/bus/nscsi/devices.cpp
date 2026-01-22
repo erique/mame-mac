@@ -13,6 +13,7 @@
 #include "bus/nscsi/cfp1080s.h"
 #include "bus/nscsi/crd254sh.h"
 #include "bus/nscsi/cw7501.h"
+#include "bus/nscsi/daynaport.h"
 #include "bus/nscsi/hd.h"
 #include "bus/nscsi/s1410.h"
 #include "bus/nscsi/smoc501.h"
@@ -36,6 +37,7 @@ void default_scsi_devices(device_slot_interface &device)
 	device.option_add("aplcd150", APPLECD150);
 	device.option_add("aplcdsc", NSCSI_CDROM_APPLE);
 	device.option_add("cfp1080s", CFP1080S);
+	device.option_add("daynaport", NSCSI_DAYNAPORT);
 }
 
 void mac_scsi_devices(device_slot_interface &device)

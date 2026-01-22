@@ -667,6 +667,7 @@ protected:
 	void scsi_status_complete(uint8_t st);
 	void scsi_data_in(int buf, int size);
 	void scsi_data_out(int buf, int size);
+	void scsi_delay(int usec);
 
 	struct sense_data {
 		sense_data()
@@ -804,7 +805,8 @@ private:
 		TARGET_WAIT_MSG_BYTE,
 		TARGET_WAIT_CMD_BYTE,
 		TARGET_WAIT_DATA_IN_BYTE,
-		TARGET_WAIT_DATA_OUT_BYTE
+		TARGET_WAIT_DATA_OUT_BYTE,
+		TARGET_DELAY_WAIT
 	};
 
 	enum {
@@ -827,7 +829,8 @@ private:
 		BC_MESSAGE_2,
 		BC_DATA_IN,
 		BC_DATA_OUT,
-		BC_BUS_FREE
+		BC_BUS_FREE,
+		BC_DELAY
 	};
 
 	struct control {

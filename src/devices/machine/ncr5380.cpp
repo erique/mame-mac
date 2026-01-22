@@ -505,6 +505,11 @@ int ncr5380_device::state_step()
 
 			delay = -1;
 		}
+		else
+		{
+			// REQ not asserted - use small delay to avoid scheduler starvation
+			delay = 1;
+		}
 		break;
 	case DMA_IN_ACK:
 		if (!(ctrl & S_REQ))
@@ -535,6 +540,11 @@ int ncr5380_device::state_step()
 				scsi_bus->data_w(scsi_refid, m_odata);
 				scsi_bus->ctrl_w(scsi_refid, S_ACK, S_ACK);
 			}
+		}
+		else
+		{
+			// REQ not asserted - use small delay to avoid scheduler starvation
+			delay = 1;
 		}
 		break;
 	case DMA_OUT_ACK:

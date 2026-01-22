@@ -328,6 +328,15 @@ void nscsi_full_device::step(bool timeout)
 		step(false);
 		break;
 
+	case TARGET_DELAY_WAIT:
+		// Timer fired after BC_DELAY - continue with next control block
+		if(timeout) {
+			scsi_state = TARGET_NEXT_CONTROL;
+			step(false);
+		}
+		// Ignore bus changes during delay
+		break;
+
 	case RECV_BYTE_T_WAIT_ACK_1 << SUB_SHIFT:
 		if(ctrl & S_ACK) {
 			scsi_put_data(data_buffer_id, data_buffer_pos++, scsi_bus->data_r());
@@ -430,6 +439,13 @@ void nscsi_full_device::step(bool timeout)
 			scsi_bus->ctrl_w(scsi_refid, 0, S_ALL);
 			scsi_state = IDLE;
 			break;
+
+		case BC_DELAY:
+			// Delay before processing next control block (param1 = microseconds)
+			// Set state to TARGET_DELAY_WAIT so bus changes don't pop the next control
+			scsi_state = TARGET_DELAY_WAIT;
+			scsi_timer->adjust(attotime::from_usec(ctl->param1), true);
+			return;
 		};
 		break;
 	}
@@ -622,6 +638,14 @@ void nscsi_full_device::scsi_data_out(int buf, int size)
 	c->action = BC_DATA_OUT;
 	c->param1 = buf;
 	c->param2 = size;
+}
+
+void nscsi_full_device::scsi_delay(int usec)
+{
+	control *c;
+	c = buf_control_push();
+	c->action = BC_DELAY;
+	c->param1 = usec;
 }
 
 //////////////////////////////////////////////////////////////////////////////
