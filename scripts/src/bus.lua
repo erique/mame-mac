@@ -2398,6 +2398,8 @@ if (BUSES["PCCARD"]~=null) then
 		MAME_DIR .. "src/devices/bus/pccard/linflash.h",
 		MAME_DIR .. "src/devices/bus/pccard/sram.cpp",
 		MAME_DIR .. "src/devices/bus/pccard/sram.h",
+		MAME_DIR .. "src/devices/bus/pccard/tfpcmcia.cpp",
+		MAME_DIR .. "src/devices/bus/pccard/tfpcmcia.h",
 	}
 end
 

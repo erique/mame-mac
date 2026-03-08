@@ -22,6 +22,7 @@
 #include "bus/amiga/zorro/zorro.h"
 #include "bus/ata/ataintf.h"
 #include "bus/pccard/sram.h"
+#include "bus/pccard/tfpcmcia.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6502/m6502.h"
 #include "machine/6525tpi.h"
@@ -1696,6 +1697,7 @@ static void pcmcia_devices(device_slot_interface &device)
 	device.option_add("sram_1m", PCCARD_SRAM_CENTENNIAL_1M);
 	device.option_add("sram_2m", PCCARD_SRAM_CENTENNIAL_2M);
 	device.option_add("sram_4m", PCCARD_SRAM_CENTENNIAL_4M);
+	device.option_add("tfpcmcia", PCCARD_TFPCMCIA);
 }
 
 // basic elements common to all amigas
