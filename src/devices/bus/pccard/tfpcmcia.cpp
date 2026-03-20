@@ -316,9 +316,9 @@ void pccard_tfpcmcia_device::device_add_mconfig(machine_config &config)
 
 
 ROM_START(tfpcmcia)
-	ROM_REGION(0x10000, "bootrom", ROMREGION_ERASEFF)
+	ROM_REGION(0x20000, "bootrom", ROMREGION_ERASEFF)
 	// boot ROM loaded from tfpcmcia/tfpcmcia.rom in rompath
-	ROM_LOAD("tfpcmcia.rom", 0x0000, 0x10000, CRC(6537ca8f) SHA1(a70436307a9012624303f9ef6482e0d9eb6e7293))
+	ROM_LOAD("tfpcmcia.rom", 0x0000, 0x20000, CRC(d7afd681) SHA1(29f72d6b5a4725fb282407db1071b599c6f23bc2))
 ROM_END
 
 const tiny_rom_entry *pccard_tfpcmcia_device::device_rom_region() const
