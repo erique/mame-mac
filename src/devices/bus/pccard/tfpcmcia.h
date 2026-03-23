@@ -6,8 +6,8 @@
 
     Custom PCMCIA board for Amiga 1200 with:
     - 4MB SPIRAM (common memory space)
-    - SPI SD card interface (attribute memory registers)
-    - Boot ROM (switchable with SPIRAM via board control register)
+    - SPI SD card interface (I/O space registers)
+    - Boot ROM (attribute memory for XIP, common memory switchable with SPIRAM)
 
 ***************************************************************************/
 
@@ -29,8 +29,10 @@ public:
 
 	virtual uint16_t read_memory(offs_t offset, uint16_t mem_mask = ~0) override;
 	virtual uint16_t read_reg(offs_t offset, uint16_t mem_mask = ~0) override;
+	virtual uint16_t read_io(offs_t offset, uint16_t mem_mask = ~0) override;
 	virtual void write_memory(offs_t offset, uint16_t data, uint16_t mem_mask = ~0) override;
 	virtual void write_reg(offs_t offset, uint16_t data, uint16_t mem_mask = ~0) override;
+	virtual void write_io(offs_t offset, uint16_t data, uint16_t mem_mask = ~0) override;
 
 protected:
 	virtual void device_start() override ATTR_COLD;
@@ -41,7 +43,7 @@ protected:
 private:
 	static constexpr u32 RAM_SIZE = 0x400000; // 4MB SPIRAM
 
-	// attribute space register offsets
+	// I/O space register offsets
 	static constexpr offs_t REG_SPI_DATA    = 0x100;
 	static constexpr offs_t REG_SPI_CS      = 0x101;
 	static constexpr offs_t REG_SPI_STATUS  = 0x102;
@@ -50,6 +52,9 @@ private:
 
 	static constexpr u8 BOARD_ID_VALUE = 0x01;
 
+	// BOARD_CTRL bits
+	static constexpr u8 BOARD_CTRL_XIP = 0x01; // bit 0: 0=DIAG CIS/bootrom, 1=XIP CIS/SPIRAM
+
 	void spi_miso_w(int state);
 	u8 spi_transfer_byte(u8 data);
 
@@ -57,7 +62,8 @@ private:
 	required_memory_region m_bootrom;
 
 	std::unique_ptr<u8[]> m_ram;
-	std::vector<u8> m_cis;
+	std::vector<u8> m_cis_diag;
+	std::vector<u8> m_cis_xip;
 	u8 m_spi_data;
 	u8 m_spi_cs;
 	u8 m_board_ctrl;

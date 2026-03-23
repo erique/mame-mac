@@ -10,8 +10,11 @@
       - Boot ROM mode (board_ctrl bit 0 = 0): reads return boot ROM data
       - SPIRAM mode (board_ctrl bit 0 = 1): 4MB read/write RAM
 
-    Attribute memory registers ($A00000+):
+    Attribute memory ($A00000+):
       $000-$0FF  CIS tuples (read-only)
+      $100+      Boot ROM (read-only, for XIP RomTag)
+
+    I/O space registers ($A20000+):
       $100       SPI_DATA    - SPI byte transfer (R/W)
       $101       SPI_CS      - SD card chip select, active low (R/W)
       $102       SPI_STATUS  - bit 0: SD card present (R)
@@ -78,68 +81,84 @@ void pccard_tfpcmcia_device::device_reset()
 	// deassert SD card chip select
 	m_sdcard->spi_ss_w(0);
 
-	// build CIS tuples
-	m_cis.clear();
-	m_cis.resize(256, 0xff);
+	// build DIAG CIS — coldstart expects CISTPL_AMIGAXIP at offset 0
+	m_cis_diag.clear();
+	m_cis_diag.resize(256, 0xff);
 
 	int i = 0;
 
+	// CISTPL_AMIGAXIP (0x91) - DIAG mode
+	m_cis_diag[i++] = 0x91; // tuple code
+	m_cis_diag[i++] = 0x05; // link (5 bytes)
+	m_cis_diag[i++] = 0x23; // flag: DIAG mode
+	m_cis_diag[i++] = 0x00; // offset byte 0 (little-endian $00400200)
+	m_cis_diag[i++] = 0x02; // offset byte 1
+	m_cis_diag[i++] = 0x40; // offset byte 2
+	m_cis_diag[i++] = 0x00; // offset byte 3
+
+	// CISTPL_END (0xFF)
+	m_cis_diag[i++] = 0xff;
+
+	// build XIP CIS — full tuple chain for card.resource / IfAmigaXIP()
+	m_cis_xip.clear();
+	m_cis_xip.resize(256, 0xff);
+
+	i = 0;
+
 	// CISTPL_DEVICE (0x01) - device information
-	m_cis[i++] = 0x01; // tuple code
-	m_cis[i++] = 0x03; // link (3 bytes)
-	m_cis[i++] = 0xd1; // device type: SRAM(0xd), no WPS, speed=250ns
-	m_cis[i++] = 0x27; // device size: 4MB (size code 0x27 = 4M)
-	m_cis[i++] = 0xff; // end of device chain
+	m_cis_xip[i++] = 0x01; // tuple code
+	m_cis_xip[i++] = 0x03; // link (3 bytes)
+	m_cis_xip[i++] = 0xd1; // device type: SRAM(0xd), no WPS, speed=250ns
+	m_cis_xip[i++] = 0x27; // device size: 4MB (size code 0x27 = 4M)
+	m_cis_xip[i++] = 0xff; // end of device chain
 
 	// CISTPL_VERS_1 (0x15) - level 1 version/product info
-	m_cis[i++] = 0x15; // tuple code
+	m_cis_xip[i++] = 0x15; // tuple code
 
 	int linkPos = i++;  // save position for link byte
 
 	int bodyStart = i;
-	m_cis[i++] = 0x04; // major version 4
-	m_cis[i++] = 0x01; // minor version 1
+	m_cis_xip[i++] = 0x04; // major version 4
+	m_cis_xip[i++] = 0x01; // minor version 1
 
-	// manufacturer string
 	static const char manufacturer[] = "TerribleFire";
 	for (const char* p = manufacturer; *p; p++)
-		m_cis[i++] = *p;
-	m_cis[i++] = 0x00;
+		m_cis_xip[i++] = *p;
+	m_cis_xip[i++] = 0x00;
 
-	// product string
 	static const char product[] = "PCMCIA SD+RAM";
 	for (const char* p = product; *p; p++)
-		m_cis[i++] = *p;
-	m_cis[i++] = 0x00;
+		m_cis_xip[i++] = *p;
+	m_cis_xip[i++] = 0x00;
 
-	// version string
 	static const char version[] = "1.0";
 	for (const char* p = version; *p; p++)
-		m_cis[i++] = *p;
-	m_cis[i++] = 0x00;
+		m_cis_xip[i++] = *p;
+	m_cis_xip[i++] = 0x00;
 
-	m_cis[i++] = 0xff; // end of strings
+	m_cis_xip[i++] = 0xff; // end of strings
 
-	m_cis[linkPos] = i - bodyStart; // fill in link
+	m_cis_xip[linkPos] = i - bodyStart; // fill in link
 
 	// CISTPL_FUNCID (0x21) - function identification
-	m_cis[i++] = 0x21; // tuple code
-	m_cis[i++] = 0x02; // link (2 bytes)
-	m_cis[i++] = 0x01; // memory card function
-	m_cis[i++] = 0x00; // system initialization byte
+	m_cis_xip[i++] = 0x21; // tuple code
+	m_cis_xip[i++] = 0x02; // link (2 bytes)
+	m_cis_xip[i++] = 0x01; // memory card function
+	m_cis_xip[i++] = 0x00; // system initialization byte
 
 	// CISTPL_AMIGAXIP (0x91) - Amiga Execute-In-Place
-	m_cis[i++] = 0x91; // tuple code
-	m_cis[i++] = 0x06; // link (6 bytes)
-	m_cis[i++] = 0x00; // TP_XIPLOC byte 0 (little-endian offset 0x00000000)
-	m_cis[i++] = 0x00; // TP_XIPLOC byte 1
-	m_cis[i++] = 0x00; // TP_XIPLOC byte 2
-	m_cis[i++] = 0x00; // TP_XIPLOC byte 3
-	m_cis[i++] = 0x01; // TP_XIPFLAGS: AUTORUN
-	m_cis[i++] = 0x00; // TP_XIPRESRV: reserved
+	// TP_XIPLOC = $400204 → Kickstart adds $600000 → RomTag at $A00204
+	m_cis_xip[i++] = 0x91; // tuple code
+	m_cis_xip[i++] = 0x06; // link (6 bytes)
+	m_cis_xip[i++] = 0x04; // TP_XIPLOC byte 0 (little-endian $00400204)
+	m_cis_xip[i++] = 0x02; // TP_XIPLOC byte 1
+	m_cis_xip[i++] = 0x40; // TP_XIPLOC byte 2
+	m_cis_xip[i++] = 0x00; // TP_XIPLOC byte 3
+	m_cis_xip[i++] = 0x01; // TP_XIPFLAGS: AUTORUN
+	m_cis_xip[i++] = 0x00; // TP_XIPRESRV: reserved
 
 	// CISTPL_END (0xFF)
-	m_cis[i++] = 0xff;
+	m_cis_xip[i++] = 0xff;
 }
 
 
@@ -150,43 +169,18 @@ void pccard_tfpcmcia_device::device_reset()
 uint16_t pccard_tfpcmcia_device::read_memory(offs_t offset, uint16_t mem_mask)
 {
 	u32 addr = offset * 2;
-
-	if (!(m_board_ctrl & 0x01))
+	if (addr + 1 < RAM_SIZE)
 	{
-		// boot ROM mode
-		u8* rom = m_bootrom->base();
-		u32 romSize = m_bootrom->bytes();
-
-		if (addr + 1 < romSize)
-		{
-			u16 data = rom[addr] | (rom[addr + 1] << 8);
-			LOGMASKED(LOG_MEMORY, "bootrom read: %06x = %04x\n", addr, data);
-			return data;
-		}
-		return 0xffff;
+		u16 data = m_ram[addr] | (m_ram[addr + 1] << 8);
+		LOGMASKED(LOG_MEMORY, "spiram read: %06x = %04x\n", addr, data);
+		return data;
 	}
-	else
-	{
-		// SPIRAM mode
-		if (addr + 1 < RAM_SIZE)
-		{
-			u16 data = m_ram[addr] | (m_ram[addr + 1] << 8);
-			LOGMASKED(LOG_MEMORY, "spiram read: %06x = %04x\n", addr, data);
-			return data;
-		}
-		return 0xffff;
-	}
+	return 0xffff;
 }
 
 
 void pccard_tfpcmcia_device::write_memory(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
-	if (!(m_board_ctrl & 0x01))
-	{
-		// boot ROM mode - writes ignored
-		return;
-	}
-
 	u32 addr = offset * 2;
 	if (addr + 1 < RAM_SIZE)
 	{
@@ -207,12 +201,39 @@ uint16_t pccard_tfpcmcia_device::read_reg(offs_t offset, uint16_t mem_mask)
 {
 	if (offset < 0x100)
 	{
-		// CIS tuples
-		if (offset < m_cis.size())
-			return m_cis[offset];
+		// CIS tuples — select DIAG or XIP based on BOARD_CTRL
+		const auto& cis = (m_board_ctrl & BOARD_CTRL_XIP) ? m_cis_xip : m_cis_diag;
+		if (offset < cis.size())
+			return cis[offset];
 		return 0xff;
 	}
 
+	// boot ROM exposed in attribute memory for XIP RomTag
+	u32 romoff = (offset - 0x100) * 2;
+	u8* rom = m_bootrom->base();
+	u32 romSize = m_bootrom->bytes();
+	if (romoff + 1 < romSize)
+	{
+		u16 data = rom[romoff] | (rom[romoff + 1] << 8);
+		LOGMASKED(LOG_MEMORY, "attr bootrom read: offset %06x = %04x\n", romoff, data);
+		return data;
+	}
+	return 0xffff;
+}
+
+
+void pccard_tfpcmcia_device::write_reg(offs_t offset, uint16_t data, uint16_t mem_mask)
+{
+	// attribute memory is read-only (CIS + boot ROM)
+}
+
+
+//**************************************************************************
+//  I/O SPACE
+//**************************************************************************
+
+uint16_t pccard_tfpcmcia_device::read_io(offs_t offset, uint16_t mem_mask)
+{
 	switch (offset)
 	{
 	case REG_SPI_DATA:
@@ -236,12 +257,12 @@ uint16_t pccard_tfpcmcia_device::read_reg(offs_t offset, uint16_t mem_mask)
 		return BOARD_ID_VALUE;
 
 	default:
-		return device_pccard_interface::read_reg(offset, mem_mask);
+		return 0xffff;
 	}
 }
 
 
-void pccard_tfpcmcia_device::write_reg(offs_t offset, uint16_t data, uint16_t mem_mask)
+void pccard_tfpcmcia_device::write_io(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	switch (offset)
 	{
@@ -261,11 +282,10 @@ void pccard_tfpcmcia_device::write_reg(offs_t offset, uint16_t data, uint16_t me
 
 	case REG_BOARD_CTRL:
 		m_board_ctrl = data & 0xff;
-		LOG("BOARD_CTRL write: %02x (%s mode)\n", m_board_ctrl, (m_board_ctrl & 0x01) ? "SPIRAM" : "bootrom");
+		LOG("BOARD_CTRL write: %02x (%s)\n", m_board_ctrl, (m_board_ctrl & BOARD_CTRL_XIP) ? "XIP/SPIRAM" : "DIAG/bootrom");
 		break;
 
 	default:
-		device_pccard_interface::write_reg(offset, data, mem_mask);
 		break;
 	}
 }
@@ -316,9 +336,9 @@ void pccard_tfpcmcia_device::device_add_mconfig(machine_config &config)
 
 
 ROM_START(tfpcmcia)
-	ROM_REGION(0x20000, "bootrom", ROMREGION_ERASEFF)
-	// boot ROM loaded from tfpcmcia/tfpcmcia.rom in rompath
-	ROM_LOAD("tfpcmcia.rom", 0x0000, 0x20000, CRC(d7afd681) SHA1(29f72d6b5a4725fb282407db1071b599c6f23bc2))
+	ROM_REGION(0x1fe00, "bootrom", ROMREGION_ERASEFF)
+	// boot ROM served via attribute memory for XIP (128KB minus $200 for CIS)
+	ROM_LOAD("tfpcmcia.rom", 0x0000, 0x1fe00, BAD_DUMP CRC(00000000) SHA1(0000000000000000000000000000000000000000))
 ROM_END
 
 const tiny_rom_entry *pccard_tfpcmcia_device::device_rom_region() const
