@@ -15,14 +15,18 @@ public:
 
 	virtual uint16_t read_memory(offs_t offset, uint16_t mem_mask = ~0);
 	virtual uint16_t read_reg(offs_t offset, uint16_t mem_mask = ~0);
+	virtual uint16_t read_io(offs_t offset, uint16_t mem_mask = ~0);
 	virtual void write_memory(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 	virtual void write_reg(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+	virtual void write_io(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
 
 	// 16-bit byte swapped trampolines
 	uint16_t read_memory_swap(offs_t offset, uint16_t mem_mask = 0xffff) { return swapendian_int16(read_memory(offset, swapendian_int16(mem_mask))); }
 	uint16_t read_reg_swap(offs_t offset, uint16_t mem_mask = 0xffff) { return swapendian_int16(read_reg(offset, swapendian_int16(mem_mask))); }
+	uint16_t read_io_swap(offs_t offset, uint16_t mem_mask = 0xffff) { return swapendian_int16(read_io(offset, swapendian_int16(mem_mask))); }
 	void write_memory_swap(offs_t offset, uint16_t data, uint16_t mem_mask = 0xffff) { write_memory(offset, swapendian_int16(data), swapendian_int16(mem_mask)); }
 	void write_reg_swap(offs_t offset, uint16_t data, uint16_t mem_mask = 0xffff) { write_reg(offset, swapendian_int16(data), swapendian_int16(mem_mask)); }
+	void write_io_swap(offs_t offset, uint16_t data, uint16_t mem_mask = 0xffff) { write_io(offset, swapendian_int16(data), swapendian_int16(mem_mask)); }
 
 	// 8-bit trampolines
 	uint8_t read_memory_byte(offs_t offset) { return read_memory(offset >> 1, 0xff << (BIT(offset, 0) * 8)) >> (BIT(offset, 0) * 8); }
@@ -66,8 +70,10 @@ public:
 
 	virtual uint16_t read_memory(offs_t offset, uint16_t mem_mask = ~0) override;
 	virtual uint16_t read_reg(offs_t offset, uint16_t mem_mask = ~0) override;
+	virtual uint16_t read_io(offs_t offset, uint16_t mem_mask = ~0) override;
 	virtual void write_memory(offs_t offset, uint16_t data, uint16_t mem_mask = ~0) override;
 	virtual void write_reg(offs_t offset, uint16_t data, uint16_t mem_mask = ~0) override;
+	virtual void write_io(offs_t offset, uint16_t data, uint16_t mem_mask = ~0) override;
 
 protected:
 	virtual void device_config_complete() override;

@@ -1454,7 +1454,7 @@ void a600_state::a600_mem(address_map &map)
 	map(0x200000, 0x5fffff).noprw();
 	map(0x600000, 0x9fffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_memory_swap), FUNC(pccard_slot_device::write_memory_swap));
 	map(0xa00000, 0xa1ffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_reg_swap), FUNC(pccard_slot_device::write_reg_swap));
-	map(0xa20000, 0xa3ffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_reg_swap), FUNC(pccard_slot_device::write_reg_swap));
+	map(0xa20000, 0xa3ffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_io_swap), FUNC(pccard_slot_device::write_io_swap));
 	//map(0xa40000, 0xa5ffff) credit card bits
 	//map(0xa60000, 0xa7ffff) credit card pc i/o
 	map(0xa80000, 0xafffff).nopw().r(FUNC(a600_state::rom_mirror_r));
@@ -1484,7 +1484,7 @@ void a1200_state::a1200_mem(address_map &map)
 	map(0x200000, 0x5fffff).noprw();
 	map(0x600000, 0x9fffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_memory_swap), FUNC(pccard_slot_device::write_memory_swap));
 	map(0xa00000, 0xa1ffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_reg_swap), FUNC(pccard_slot_device::write_reg_swap));
-	map(0xa20000, 0xa3ffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_reg_swap), FUNC(pccard_slot_device::write_reg_swap));
+	map(0xa20000, 0xa3ffff).rw(m_pcmcia, FUNC(pccard_slot_device::read_io_swap), FUNC(pccard_slot_device::write_io_swap));
 	//map(0xa40000, 0xa5ffff) credit card bits
 	//map(0xa60000, 0xa7ffff) credit card pc i/o
 	map(0xa80000, 0xafffff).nopw().r(FUNC(a1200_state::rom_mirror32_r));
