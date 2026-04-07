@@ -10,7 +10,10 @@ MCP client <--stdio--> mcp_bridge.py <--unix socket or tcp--> MAME MCP server
 
 MAME exposes a JSON-RPC 2.0 server on a unix domain socket or TCP port. MCP clients typically speak MCP over stdio. The bridge connects the two by forwarding JSON-RPC messages between stdin/stdout and the server.
 
-The bridge is resilient: it waits for MAME to appear and reconnects automatically if MAME restarts.
+The bridge handles the MCP protocol itself (initialize, tools/list) so that
+Claude Code always sees a healthy MCP server, even when MAME isn't running.
+When MAME connects or disconnects, the bridge sends a `tools/list_changed`
+notification so Claude Code refreshes the tool list automatically.
 
 ## Prerequisites
 
@@ -24,9 +27,9 @@ MAME supports two transport mechanisms:
 
 | Transport | MAME flag | Bridge argument | Use case |
 |-----------|-----------|-----------------|----------|
-| Unix socket | `-mcp /tmp/mame-mcp.sock` | `/tmp/mame-mcp.sock` | Local, default |
-| TCP localhost | `-mcp tcp:6789` | `tcp:6789` | Local, no socket file |
-| TCP remote | `-mcp tcp:0.0.0.0:6789` | `tcp:host:6789` | Remote/headless |
+| Unix socket | `-mcp /tmp/mame-mcp.sock` | `/tmp/mame-mcp.sock` | Local, recommended |
+| TCP localhost | `-mcp tcp:8371` | `tcp:8371` | Local, no socket file |
+| TCP remote | `-mcp tcp:0.0.0.0:8371` | `tcp:host:8371` | Remote/headless |
 
 The MAME `-mcp` flag and the bridge argument use the same format.
 
@@ -45,7 +48,7 @@ args: /path/to/mame/scripts/mcp/mcp_bridge.py /tmp/mame-mcp.sock
 
 For Claude Code, add an `mcpServers` entry under your project in `~/.claude.json`:
 
-#### Unix socket (default)
+#### Unix socket (recommended)
 
 ```json
 {
@@ -79,7 +82,7 @@ For Claude Code, add an `mcpServers` entry under your project in `~/.claude.json
           "command": "python3",
           "args": [
             "/path/to/mame/scripts/mcp/mcp_bridge.py",
-            "tcp:6789"
+            "tcp:8371"
           ],
           "env": {}
         }
@@ -93,11 +96,11 @@ For Claude Code, add an `mcpServers` entry under your project in `~/.claude.json
 
 1. Start MAME with the MCP server enabled:
    ```
-   # Unix socket
+   # Unix socket (recommended)
    ./mamed -debug -mcp /tmp/mame-mcp.sock a4000t
 
    # TCP
-   ./mamed -debug -mcp tcp:6789 a4000t
+   ./mamed -debug -mcp tcp:8371 a4000t
    ```
 
 2. Start your MCP client. The bridge will connect automatically when MAME is running.
