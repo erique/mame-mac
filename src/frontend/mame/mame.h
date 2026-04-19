@@ -28,6 +28,7 @@ class cheat_manager;
 class inifile_manager;
 class favorite_manager;
 class mame_ui_manager;
+class mcp_server;
 
 //**************************************************************************
 //    TYPE DEFINITIONS
@@ -44,6 +45,7 @@ public:
 
 	plugin_options &plugins() const { return *m_plugins; }
 	lua_engine *lua() { return m_lua.get(); }
+	mcp_server *mcp() { return m_mcp.get(); }
 
 	virtual void update_machine() override;
 
@@ -65,6 +67,7 @@ public:
 	/* execute as configured by the OPTION_SYSTEMNAME option on the specified options */
 	int execute();
 	void start_luaengine();
+	void start_mcp_server();
 	void schedule_new_driver(const game_driver &driver);
 	mame_ui_manager& ui() const { assert(m_ui != nullptr); return *m_ui; }
 	cheat_manager &cheat() const { assert(m_cheat != nullptr); return *m_cheat; }
@@ -81,6 +84,7 @@ private:
 
 	std::unique_ptr<plugin_options>    m_plugins;           // pointer to plugin options
 	std::unique_ptr<lua_engine>        m_lua;
+	std::unique_ptr<mcp_server>        m_mcp;
 
 	const game_driver *     m_new_driver_pending;           // pointer to the next pending driver
 	bool                    m_firstrun;

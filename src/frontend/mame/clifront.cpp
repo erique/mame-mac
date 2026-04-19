@@ -262,6 +262,7 @@ void cli_frontend::start_execution(mame_machine_manager *manager, const std::vec
 	load_translation(m_options);
 
 	manager->start_http_server();
+	manager->start_mcp_server();
 
 	manager->start_luaengine();
 

@@ -225,6 +225,9 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_HTTP_PORT,                                  "8080",      core_options::option_type::INTEGER,    "HTTP server port" },
 	{ OPTION_HTTP_ROOT,                                  "web",       core_options::option_type::PATH,       "HTTP server document root" },
 
+	{ nullptr,                                           nullptr,     core_options::option_type::HEADER,     "MCP SERVER OPTIONS" },
+	{ OPTION_MCP,                                        "",          core_options::option_type::STRING,     "MCP server endpoint (unix socket path, or tcp:port, or tcp:host:port)" },
+
 	{ nullptr }
 };
 

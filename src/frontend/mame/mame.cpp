@@ -22,6 +22,7 @@
 #include "fileio.h"
 #include "luaengine.h"
 #include "mameopts.h"
+#include "mcp_server.h"
 #include "pluginopts.h"
 #include "rendlay.h"
 #include "validity.h"
@@ -75,6 +76,7 @@ mame_machine_manager::mame_machine_manager(emu_options &options,osd_interface &o
 mame_machine_manager::~mame_machine_manager()
 {
 	m_autoboot_script.reset();
+	m_mcp.reset();
 	m_lua.reset();
 	s_manager = nullptr;
 }
@@ -107,6 +109,8 @@ void mame_machine_manager::update_machine()
 {
 	m_lua->set_machine(m_machine);
 	m_lua->attach_notifiers();
+	if (m_mcp)
+		m_mcp->set_machine(m_machine);
 }
 
 
@@ -133,6 +137,13 @@ static std::vector<std::string> split(const std::string &text, char sep)
 //-------------------------------------------------
 //  start_luaengine
 //-------------------------------------------------
+
+void mame_machine_manager::start_mcp_server()
+{
+	const char* socketPath = options().mcp();
+	if (socketPath && *socketPath)
+		m_mcp = std::make_unique<mcp_server>(socketPath);
+}
 
 void mame_machine_manager::start_luaengine()
 {

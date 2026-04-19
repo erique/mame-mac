@@ -42,6 +42,7 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 	, m_breakcpu(nullptr)
 	, m_symtable(nullptr)
 	, m_vblank_occurred(false)
+	, m_stop_frame_number(0)
 	, m_execution_state(exec_state::STOPPED)
 	, m_stop_when_not_device(nullptr)
 	, m_bpindex(1)
@@ -263,9 +264,12 @@ bool debugger_cpu::comment_load(bool is_inline)
 
 void debugger_cpu::on_vblank(screen_device &device, bool vblank_state)
 {
-	/* just set a global flag to be consumed later */
+	// signal vblank only when the target frame is reached (or target is 0 for next vblank)
 	if (vblank_state)
-		m_vblank_occurred = true;
+	{
+		if (m_stop_frame_number == 0 || device.frame_number() >= m_stop_frame_number)
+			m_vblank_occurred = true;
+	}
 }
 
 
@@ -381,8 +385,9 @@ void debugger_cpu::go_next_device(device_t *device)
 	m_execution_state = exec_state::RUNNING;
 }
 
-void debugger_cpu::go_vblank()
+void debugger_cpu::go_vblank(u64 target_frame)
 {
+	m_stop_frame_number = target_frame;
 	m_vblank_occurred = false;
 	m_execution_state = exec_state::RUNNING;
 }
@@ -1147,16 +1152,17 @@ void device_debug::go(offs_t targetpc)
 
 
 //-------------------------------------------------
-//  go_vblank - execute until the next VBLANK
+//  go_vblank - execute until the next VBLANK,
+//  or until the screen reaches target_frame
 //-------------------------------------------------
 
-void device_debug::go_vblank()
+void device_debug::go_vblank(u64 target_frame)
 {
 	assert(m_exec != nullptr);
 
 	m_device.machine().rewind_invalidate();
 	m_flags |= DEBUG_FLAG_STOP_VBLANK;
-	m_device.machine().debugger().cpu().go_vblank();
+	m_device.machine().debugger().cpu().go_vblank(target_frame);
 }
 
 

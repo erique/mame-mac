@@ -692,6 +692,8 @@ input_device_item::input_device_item(
 	, m_itemclass(itemclass)
 	, m_getstate(getstate)
 	, m_current(0)
+	, m_injected(0)
+	, m_inject_once(false)
 {
 	const char *standard_token = manager().standard_token(itemid);
 	if (standard_token)

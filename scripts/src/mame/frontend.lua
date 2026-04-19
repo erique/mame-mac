@@ -79,6 +79,8 @@ files {
 	MAME_DIR .. "src/frontend/mame/luaengine_render.cpp",
 	MAME_DIR .. "src/frontend/mame/mame.cpp",
 	MAME_DIR .. "src/frontend/mame/mame.h",
+	MAME_DIR .. "src/frontend/mame/mcp_server.cpp",
+	MAME_DIR .. "src/frontend/mame/mcp_server.h",
 	MAME_DIR .. "src/frontend/mame/mameopts.cpp",
 	MAME_DIR .. "src/frontend/mame/mameopts.h",
 	MAME_DIR .. "src/frontend/mame/media_ident.cpp",

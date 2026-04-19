@@ -72,7 +72,7 @@ public:
 
 	// execution
 	void go(offs_t targetpc = ~0);
-	void go_vblank();
+	void go_vblank(u64 target_frame = 0);
 	void go_interrupt(int irqline = -1);
 	void go_exception(int exception, const char *condition);
 	void go_milliseconds(u64 milliseconds);
@@ -409,7 +409,7 @@ public:
 	void start_hook(device_t *device, bool stop_on_vblank);
 	void stop_hook(device_t *device);
 	void go_next_device(device_t *device);
-	void go_vblank();
+	void go_vblank(u64 target_frame = 0);
 	void halt_on_next_instruction(device_t *device, util::format_argument_pack<char> &&args);
 	void ensure_comments_loaded();
 	void reset_transient_flags();
@@ -430,6 +430,7 @@ private:
 
 	bool        m_within_instruction_hook;
 	bool        m_vblank_occurred;
+	u64         m_stop_frame_number;    // target frame for go_vblank (0 = next vblank)
 	bool        m_memory_modified;
 
 	exec_state  m_execution_state;

@@ -92,6 +92,12 @@ public:
 	s32 update_value();
 	bool check_axis(input_item_modifier modifier, s32 memory);
 
+	// MCP injection: allows external tools to inject input values
+	// once=true: value is consumed after first update_value() read (for relative deltas)
+	// once=false: value persists until explicitly changed (for buttons, absolute axes)
+	void inject(s32 value, bool once = false) { m_injected = value; m_inject_once = once; }
+	void clear_injection() { m_injected = 0; m_inject_once = false; }
+
 	// readers
 	virtual s32 read_as_switch(input_item_modifier modifier) = 0;
 	virtual s32 read_as_relative(input_item_modifier modifier) = 0;
@@ -120,6 +126,10 @@ protected:
 
 	// live state
 	s32                     m_current;              // current raw value
+
+	// MCP injection state
+	s32                     m_injected;             // injected value added to getstate result
+	bool                    m_inject_once;          // if true, clear m_injected after first read
 };
 
 
@@ -400,6 +410,16 @@ protected:
 inline input_manager &input_device_item::manager() const { return m_device.manager(); }
 inline running_machine &input_device_item::machine() const { return m_device.machine(); }
 inline input_code input_device_item::code() const { return input_code(m_device.devclass(), m_device.devindex(), m_itemclass, ITEM_MODIFIER_NONE, m_itemid); }
-inline s32 input_device_item::update_value() { return m_current = (*m_getstate)(m_device.internal(), m_internal); }
+inline s32 input_device_item::update_value()
+{
+	s32 base = (*m_getstate)(m_device.internal(), m_internal);
+	s32 inj = m_injected;
+	if (inj != 0 && m_inject_once)
+	{
+		m_injected = 0;
+		m_inject_once = false;
+	}
+	return m_current = base + inj;
+}
 
 #endif  // MAME_EMU_INPUTDEV_H
