@@ -7,17 +7,38 @@ the client always sees a healthy MCP server, even when MAME isn't running.
 When MAME connects or disconnects, the bridge sends a tools/list_changed
 notification so the client refreshes the tool list automatically.
 
+The bridge exposes one locally-served tool, `bridge_info`, which reports its
+socket path and transport so clients can discover how to launch MAME.
+
 Supports both Unix domain sockets and TCP:
-  mcp_bridge.py /tmp/mame-mcp.sock       Unix socket
-  mcp_bridge.py tcp:6789                  TCP localhost
-  mcp_bridge.py tcp:host:port             TCP remote
+  mcp_bridge.py                          Unix socket at /tmp/mame-mcp-<pid>.sock
+  mcp_bridge.py /tmp/mame-mcp.sock       Unix socket at explicit path
+  mcp_bridge.py tcp:6789                 TCP localhost
+  mcp_bridge.py tcp:host:port            TCP remote
 """
 
 import json
+import os
 import socket
 import sys
 import threading
 import time
+
+
+BRIDGE_INFO_TOOL = {
+    "name": "bridge_info",
+    "description": (
+        "Returns information about the MCP bridge: its socket path / TCP endpoint, "
+        "transport, connection status to MAME, and the exact `-mcp` argument to use "
+        "when launching MAME so it connects to this bridge's session. Call this "
+        "before starting MAME to discover the correct endpoint."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+}
 
 
 def parse_endpoint(endpoint):
@@ -58,14 +79,28 @@ class MameBridge:
     def __init__(self, endpoint):
         self.family, self.address = parse_endpoint(endpoint)
         self.endpoint = endpoint
+        self.transport = "tcp" if endpoint.startswith("tcp:") else "unix"
         self.sock = None
         self.lock = threading.Lock()
         self.reader_thread = None
         self.monitor_thread = None
-        self.cached_tools = []
-        self.pending = {}  # id -> threading.Event, response
+        self.mame_tools = []
+        self.pending = {}
         self.pending_lock = threading.Lock()
         self.was_connected = False
+
+    @property
+    def cached_tools(self):
+        return [BRIDGE_INFO_TOOL] + self.mame_tools
+
+    def bridge_info(self):
+        return {
+            "transport": self.transport,
+            "endpoint": self.endpoint,
+            "mame_arg": self.endpoint,
+            "connected": self.is_connected(),
+            "bridge_pid": os.getpid(),
+        }
 
     def connect(self):
         """Try to connect to MAME. Returns True on success."""
@@ -154,11 +189,9 @@ class MameBridge:
                     with self.pending_lock:
                         entry = self.pending.get(msg_id)
                     if entry is not None:
-                        # internal request (tools/list fetch etc)
                         entry["response"] = msg
                         entry["event"].set()
                     else:
-                        # proxied tool call response - forward to the stdio client
                         send_to_client(msg)
             except OSError:
                 break
@@ -177,7 +210,7 @@ class MameBridge:
         resp = self.send_request("tools/list")
         if resp and "result" in resp:
             tools = resp["result"].get("tools", [])
-            self.cached_tools = tools
+            self.mame_tools = tools
             log(f"fetched {len(tools)} tools from MAME")
             return True
         return False
@@ -186,7 +219,6 @@ class MameBridge:
         """Called when MAME connection is established."""
         log(f"connected to MAME at {self.endpoint}")
         self.start_reader()
-        # initialize the MCP session with MAME
         self.send_request("initialize", {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
@@ -195,20 +227,17 @@ class MameBridge:
         self.send((json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n").encode())
         self.fetch_tools()
         self.was_connected = True
-        # notify the client that tools changed
         send_to_client({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"})
 
     def on_disconnected(self):
         """Called when MAME connection is lost."""
         if self.was_connected:
             log("MAME disconnected")
-            self.cached_tools = []
+            self.mame_tools = []
             self.was_connected = False
-            # notify the client that tools changed (now empty)
             send_to_client({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"})
 
     def start_monitor(self):
-        """Background thread that monitors connection to MAME."""
         def monitor():
             while True:
                 time.sleep(2)
@@ -222,21 +251,30 @@ class MameBridge:
         self.monitor_thread.start()
 
 
+def handle_bridge_info_call(bridge, req_id):
+    """Serve a tools/call for bridge_info locally."""
+    info = bridge.bridge_info()
+    send_to_client(jsonrpc_result(req_id, {
+        "content": [{"type": "text", "text": json.dumps(info, indent=2)}],
+    }))
+
+
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: mcp_bridge.py <endpoint>", file=sys.stderr)
-        print("  endpoint: /path/to/socket | tcp:port | tcp:host:port", file=sys.stderr)
-        sys.exit(1)
+    if len(sys.argv) > 1:
+        endpoint = sys.argv[1]
+    else:
+        endpoint = f"/tmp/mame-mcp-{os.getpid()}.sock"
 
-    bridge = MameBridge(sys.argv[1])
+    bridge = MameBridge(endpoint)
 
-    # try initial connection
+    # Structured marker for external discovery (e.g. `grep '^BRIDGE_INFO:'` in bridge stderr).
+    print(f"BRIDGE_INFO: {json.dumps(bridge.bridge_info())}", file=sys.stderr, flush=True)
+
     if bridge.connect():
         bridge.on_connected()
     else:
         log(f"waiting for MAME on {bridge.endpoint}...")
 
-    # start background monitor for (re)connections
     bridge.start_monitor()
 
     for line in sys.stdin:
@@ -252,7 +290,6 @@ def main():
         req_id = msg.get("id")
         method = msg.get("method", "")
 
-        # handle MCP protocol locally
         if method == "initialize":
             send_to_client(jsonrpc_result(req_id, {
                 "protocolVersion": "2024-11-05",
@@ -262,25 +299,27 @@ def main():
             continue
 
         if method == "notifications/initialized":
-            # client ack, nothing to do
             continue
 
         if method == "tools/list":
             send_to_client(jsonrpc_result(req_id, {"tools": bridge.cached_tools}))
             continue
 
-        # proxy everything else (tools/call etc) to MAME
+        if method == "tools/call":
+            tool_name = msg.get("params", {}).get("name")
+            if tool_name == "bridge_info":
+                handle_bridge_info_call(bridge, req_id)
+                continue
+
         if not bridge.is_connected():
             if req_id is not None:
                 send_to_client(jsonrpc_error(req_id, -32000, "MAME is not running"))
             continue
 
         if not bridge.send((json.dumps(msg) + "\n").encode()):
-            # send failed
             if req_id is not None:
                 send_to_client(jsonrpc_error(req_id, -32000, "MAME connection lost"))
             continue
-        # response will be forwarded by the reader thread
 
 
 if __name__ == "__main__":
