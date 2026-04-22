@@ -1626,9 +1626,13 @@ std::string mcp_server::tool_breakpoint_set(const std::string& params)
 	offs_t address = args["address"].GetUint64();
 	const char* condition = nullptr;
 	std::string condStr;
-	if (args.HasMember("condition") && args["condition"].IsString())
+	if (args.HasMember("condition"))
 	{
+		if (!args["condition"].IsString())
+			throw std::runtime_error("Parameter 'condition' must be a string");
 		condStr = args["condition"].GetString();
+		if (condStr.empty())
+			throw std::runtime_error("Parameter 'condition' is empty; omit it to set an unconditional breakpoint");
 		condition = condStr.c_str();
 	}
 
@@ -1639,6 +1643,23 @@ std::string mcp_server::tool_breakpoint_set(const std::string& params)
 		throw std::runtime_error("Debugger is not active (launch with -debug)");
 
 	device_debug* dbg = find_cpu_debug(m_machine, cpuTag);
+
+	// Pre-validate the condition so a parse error surfaces immediately
+	// instead of silently creating a BP that always or never matches.
+	if (condition)
+	{
+		try
+		{
+			parsed_expression validate(dbg->symtable(), condition);
+		}
+		catch (expression_error const &ex)
+		{
+			throw std::runtime_error(
+				"Invalid condition expression: " + ex.code_string() +
+				" (offset " + std::to_string(ex.offset()) + ")");
+		}
+	}
+
 	int index = dbg->breakpoint_set(address, condition);
 
 	rapidjson::StringBuffer sb;
@@ -1646,6 +1667,10 @@ std::string mcp_server::tool_breakpoint_set(const std::string& params)
 	w.StartObject();
 	w.Key("index"); w.Int(index);
 	w.Key("address"); w.String(to_hex(address).c_str());
+	if (condition)
+	{
+		w.Key("condition"); w.String(condition);
+	}
 	w.EndObject();
 
 	return sb.GetString();
@@ -1798,9 +1823,13 @@ std::string mcp_server::tool_watchpoint_set(const std::string& params)
 		spaceNum = args["space"].GetInt();
 	const char* condition = nullptr;
 	std::string condStr;
-	if (args.HasMember("condition") && args["condition"].IsString())
+	if (args.HasMember("condition"))
 	{
+		if (!args["condition"].IsString())
+			throw std::runtime_error("Parameter 'condition' must be a string");
 		condStr = args["condition"].GetString();
+		if (condStr.empty())
+			throw std::runtime_error("Parameter 'condition' is empty; omit it to set an unconditional watchpoint");
 		condition = condStr.c_str();
 	}
 
@@ -1836,6 +1865,20 @@ std::string mcp_server::tool_watchpoint_set(const std::string& params)
 	if (!dbg)
 		throw std::runtime_error("Device has no debug interface: " + cpuTag);
 
+	if (condition)
+	{
+		try
+		{
+			parsed_expression validate(dbg->symtable(), condition);
+		}
+		catch (expression_error const &ex)
+		{
+			throw std::runtime_error(
+				"Invalid condition expression: " + ex.code_string() +
+				" (offset " + std::to_string(ex.offset()) + ")");
+		}
+	}
+
 	int index = dbg->watchpoint_set(space, rwType, address, length, condition);
 
 	rapidjson::StringBuffer sb;
@@ -1844,6 +1887,10 @@ std::string mcp_server::tool_watchpoint_set(const std::string& params)
 	w.Key("index"); w.Int(index);
 	w.Key("address"); w.String(to_hex(address).c_str());
 	w.Key("length"); w.Uint64(length);
+	if (condition)
+	{
+		w.Key("condition"); w.String(condition);
+	}
 	w.EndObject();
 
 	return sb.GetString();
